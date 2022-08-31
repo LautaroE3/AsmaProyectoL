@@ -144,7 +144,6 @@ app.get("/saludMental", (req, res) => {
 });
 app.get("/neumonologia", (req, res) => {
     res.status(200).render("neumonologia");
-    
 });
 app.get("/postear", (req, res) => {
     if(login){
@@ -188,6 +187,16 @@ app.post("/subirpost", (req, res) => {
 
 
 
+app.get('/seccionAdmin', (req, res) => {
+    if(login){
+        res.status(200).render("edicionPosteos", {data:PostModel.find()});
+    }
+    else{
+    res.redirect("/login"); 
+    }
+});
+
+
 app.get("/config", (req, res) => {
     if(login){
         res.status(200).render("config");
@@ -219,6 +228,13 @@ app.post("/ChangeDatos", (req, res) => {
     }
 });
 
+app.get("/subirPost", (req, res) => {
+    res.status(200).render("postear2");
+});
+
+
+
+
 
 
 app.get("/*", (req, res) => {
@@ -227,11 +243,9 @@ app.get("/*", (req, res) => {
 });
 
 
-
 app.get("/subirPost", (req, res) => {
     res.status(200).render("postear2");
 });
-
 
 
 
