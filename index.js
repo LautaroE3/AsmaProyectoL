@@ -51,10 +51,10 @@ app.use(passport.session());
 
 passport.use(new PassportLocal(function(username,password,done){
     
-    if(username=="Doctor" && password =="adm")
+    if(username=="Doctor" && password =="adm"){
     login=true;
     return done(null,{id:1,name:"Admin"});
-
+    }
     done(null,false);
 
 }));
@@ -94,7 +94,7 @@ app.get("/login", (req, res) => {
 });
 app.post("/login",passport.authenticate('local',{
     successRedirect: "/",
-    failureRedirect: "/login"
+    failureRedirect: "/login",
 }));
 
 app.get('/seccionAdmin',(req,res,next)=>{
