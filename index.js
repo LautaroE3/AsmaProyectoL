@@ -4,7 +4,11 @@ const path = require("path");
 const morgan = require("morgan");
 const cloudinary = require("cloudinary").v2;
 const cors = require("cors");
-const session = require("cookie-session");
+const passport = require('passport');
+const cookieParser = require('cookie-parser');
+const session = require("express-session");
+const PassportLocal = require('passport-local').Strategy;
+
 
 //Base de Datos
 const mongoose = require("mongoose");
@@ -14,7 +18,6 @@ const PostModel = require("./models/postModel");
 //hash
 const bcrypt = require("bcrypt");
 const { stringify } = require("querystring");
-
 //variables globales para el logeo y los sweetsalert
 global.isLogin = 0;
 global.login = false;
@@ -26,27 +29,45 @@ app.set("view engine", "ejs");
 //Defino la localización de mis vistas
 app.set("views", path.join(__dirname, "views"));
 
-
 app.use(cors());
 //Middlewares
-app.use(
-    session({
-        secret: "keyboard cat",
-        resave: false,
-        saveUninitialized: true,
-        cookie: { secure: true },
-    })
-);
-
-
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, "public")));
 app.use(morgan("dev"));
 //Middleware para poder obtener data de los requests con BodyParser
 app.use(express.json());
 //Configurando archivos estáticos
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(cookieParser('clave'));
+app.use(
+    session({
+        secret: 'clave',
+        resave: true,
+        saveUninitialized: true
+    })
+);
+app.use(passport.initialize());
+app.use(passport.session());
 
-const port = 3700;
+passport.use(new PassportLocal(function(username,password,done){
+    
+    if(username=="Doctor" && password =="adm")
+    login=true;
+    return done(null,{id:1,name:"Admin"});
+
+    done(null,false);
+
+}));
+passport.serializeUser(function(username,done){
+    done(null,username.id);
+});
+passport.deserializeUser(function(id,done){
+    done(null,{id:1,name:"Admin"});
+});
+
+
+
+const port = 3000;
 //Corremos el servidor en el puerto seleccionado
 app.listen(port, () => {
     console.log(`Servidor corriendo en el puerto ${port} correctamente`);
@@ -71,59 +92,28 @@ app.get("/", (req, res) => {
 app.get("/login", (req, res) => {
     res.status(200).render("login", { isLogin: isLogin, login: login });
 });
+app.post("/login",passport.authenticate('local',{
+    successRedirect: "/",
+    failureRedirect: "/login"
+}));
 
-app.post("/login", (req, res) => {
-        Admin.find({ usuario: req.body.usuario }, (err, docs) => {
-            if(req.body.usuario==docs[0].usuario){
+app.get('/seccionAdmin',(req,res,next)=>{
+    if(req.isAuthenticated()) return next();
 
-            bcrypt.compare(req.body.contraseña,bcrypt.hashSync(docs[0].contraseña, 5),(err, resul) => {
-
-                    console.log(docs[0].contraseña);
-
-                    if (err) throw err;
-
-                    if (resul) {
-
-                        res.session = true;
-                        login = res.session;
-                        isLogin = 1;
-                        res.status(200).render("edicionPosteos", {data:PostModel.find()});
-
-                    } else {
-
-                        isLogin = 2;
-                        res.status(200).render("login", {isLogin: isLogin,login: login,});
-
-                    }
-                });
-            }
-            else {
-                isLogin = 3;
-                res.status(200).render("login", { isLogin: isLogin, login: login });
-            }
-            
-        }); 
+    res.redirect("/login");
+},
+ (req, res) => {
+        res.status(200).render("edicionPosteos", {data:PostModel.find()});
 });
 
-app.get('/seccionAdmin', (req, res) => {
-    if(login){
-        
+app.get("/logout",(req,res,next)=>{
+    if(req.isAuthenticated()) return next();
 
-        
-    }
-    else{
-        res.redirect("/login");
-    }
-});
-
-app.get("/logout", (req, res) => {
-    if (login) {
+    res.redirect("/login");
+}, (req, res) => {
         login = false;
         req.session.destroy();   
         res.redirect("/");
-    } else {
-        res.redirect("/");
-    }
 });
 app.get("/error404", (req, res) => {
     res.status(200).render("error404");
@@ -145,16 +135,13 @@ app.get("/saludMental", (req, res) => {
 app.get("/neumonologia", (req, res) => {
     res.status(200).render("neumonologia");
 });
-app.get("/postear", (req, res) => {
-    if(login){
+app.get("/postear",(req,res,next)=>{
+    if(req.isAuthenticated()) return next();
+    
+    isLogin = 4
+    res.redirect("/login");
+}, (req, res) => {
         res.status(200).render("postPrueba", { isLogin: isLogin, login: login });
-    }
-    else{
-        isLogin = 4
-        res.redirect("/"); //Hacer vista o algo con esto
-    }
-
-
 });
 app.post("/subirpost", (req, res) => {
         let fecha=req.body.fecha;
@@ -185,30 +172,20 @@ app.post("/subirpost", (req, res) => {
             
 });
 
+app.get("/config",(req,res,next)=>{
+    if(req.isAuthenticated()) return next();
 
-
-app.get('/seccionAdmin', (req, res) => {
-    if(login){
-        res.status(200).render("edicionPosteos", {data:PostModel.find()});
-    }
-    else{
-    res.redirect("/login"); 
-    }
-});
-
-
-app.get("/config", (req, res) => {
-    if(login){
+    isLogin=4;
+    res.redirect("/login");
+}, (req, res) => {
         res.status(200).render("config");
-    }
-    else{
-        res.redirect("/login");
-    }
 });
 
-app.post("/ChangeDatos", (req, res) => {
-    res.status(200).render("login");
-    if (login) {
+app.post("/ChangeDatos",(req,res,next)=>{
+    if(req.isAuthenticated()) return next();
+
+    res.redirect("/login");
+}, (req, res) => {
         Admin.findOneAndUpdate({ nombre: "admin" },
 { $set: { contraseña: req.body.contraseña } }, { new: true }, function (err, doc) {
                 if (err) console.log("Error ", err);
@@ -225,7 +202,6 @@ app.post("/ChangeDatos", (req, res) => {
             });
 
 
-    }
 });
 
 app.get("/subirPost", (req, res) => {
